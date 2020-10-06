@@ -27,13 +27,14 @@ def top(args):
     print_top(
         year=args.year,
         sortby=args.sortby.upper(),
+        sortorder=args.sortorder.upper(),
         areaname=args.areaname,
         N=args.N,
         verbose=args.verbose
     )
 
 
-def print_top(year, sortby='TOTAL', areaname=None, N=10, verbose=False):
+def print_top(year, sortby='TOTAL', sortorder='DESC', areaname=None, N=10, verbose=False):
     file_name = f'data/Odata{year}_utf8.csv'
 
 
@@ -82,7 +83,10 @@ def print_top(year, sortby='TOTAL', areaname=None, N=10, verbose=False):
         if all_marks:
             school_stats_totals[school_name]['TOTAL'] = round(statistics.mean(all_marks), 2)
 
-    school_stats_totals = sorted(school_stats_totals.items(), key=lambda x: x[1].get(sortby, 0), reverse=True)
+    school_stats_totals = sorted(
+        school_stats_totals.items(), key=lambda x: x[1].get(sortby, 0),
+        reverse=sortorder == 'DESC'
+    )
 
     _columns = [x.replace('Ball100', '').upper() for x in columns] + ['TOTAL']
 
@@ -98,7 +102,129 @@ def print_top(year, sortby='TOTAL', areaname=None, N=10, verbose=False):
             print()
         else:
             print(f'{number}. Stats for {school_name} IN {year} TOTAL MEAN SCORE: {school_stats_total["TOTAL"]}')
+
+
+def gender(args):
+    print_stats_by(
+        grouping='SEXTYPENAME',
+        grouping_title='Sex',
+        year=args.year,
+        sortby=args.sortby.upper(),
+        sortorder=args.sortorder.upper(),
+        areaname=args.areaname,
+        N=args.N,
+        verbose=args.verbose
+    )
+
+def region(args):
+    print_stats_by(
+        grouping='REGNAME',
+        grouping_title='Region',
+        year=args.year,
+        sortby=args.sortby.upper(),
+        sortorder=args.sortorder.upper(),
+        areaname=args.areaname,
+        N=args.N,
+        verbose=args.verbose
+    )
+
+def language(args):
+    print_stats_by(
+        grouping='ClassLangName',
+        grouping_title='Language',
+        year=args.year,
+        sortby=args.sortby.upper(),
+        sortorder=args.sortorder.upper(),
+        areaname=args.areaname,
+        N=args.N,
+        verbose=args.verbose
+    )
+
+def print_stats_by(year, grouping='SEXTYPENAME', grouping_title='SEX', sortby='TOTAL', sortorder='DESC', areaname=None, N=10, verbose=False):
+    file_name = f'data/Odata{year}_utf8.csv'
+
+
+    columns = [
+        'UkrBall100',
+        'histBall100',
+        'mathBall100',
+        'physBall100',
+        'chemBall100',
+        'bioBall100',
+        'geoBall100',
+        'engBall100',
+        'fraBall100',
+        'deuBall100',
+        'spaBall100'
+    ]
+
+    if year == 2017:
+        grouping = grouping.upper()
+        columns = [x.upper() for x in columns]
+
+    results = defaultdict(lambda: defaultdict(list))
+    
+
+    with open(file_name, newline='') as f:
+        reader = csv.DictReader(f, delimiter=';')
         
+        for row in reader:
+            grouping_value = row[grouping]
+
+            if areaname and areaname not in row['AREANAME']:
+                continue
+
+            for column in columns:
+                if row[column] != 'null':
+                    results[grouping_value][column].append(float(row[column].replace(',','.')))
+
+    stats_totals = defaultdict(dict)
+
+    for grouping_value, stats in results.items():
+        stats_totals[grouping_value] = {
+            k.replace('Ball100', '').upper(): round(statistics.mean(v), 2)
+            for k, v in sorted(stats.items(), key=lambda x: x[0])
+        }
+        all_marks = list(itertools.chain(*list(stats.values())))
+        
+        if all_marks:
+            stats_totals[grouping_value]['TOTAL'] = round(statistics.mean(all_marks), 2)
+
+    stats_totals = sorted(
+        stats_totals.items(), key=lambda x: x[1].get(sortby, 0),
+        reverse=sortorder == 'DESC'
+    )
+
+    _columns = [x.replace('Ball100', '').upper() for x in columns]
+
+    table = PrettyTable()
+    if verbose:
+        table.field_names = ['#', grouping_title, "year"] + [x.replace('Ball100', '').upper() for x in columns] + ['MEAN SCORE']
+    else:
+        table.field_names = ["#", grouping_title, "year", sortby, "MEAN SCORE"]
+
+    table.align[grouping_title] = 'l'
+
+    for number, (grouping_value, gender_stats_total) in enumerate(stats_totals[:N], start=1):
+        if verbose:
+            # print('----->', [number, grouping_value, year] + [gender_stats_total.get(x, 0.0) for x in _columns] + [gender_stats_total["TOTAL"]])
+            table.add_row([number, grouping_value, year] + [gender_stats_total.get(x, 0.0) for x in _columns] + [gender_stats_total["TOTAL"]])
+
+            # print(f'{number}. {grouping_title}: {grouping_value}. Year:{year}')
+            
+            # table = PrettyTable()
+            # table.field_names = _columns
+            # table.add_row([gender_stats_total.get(x, 0.0) for x in _columns])
+            
+            # print(table)
+            # print()
+        else:
+            # print(f'{number}. {grouping_title}: {grouping_value} IN {year} TOTAL MEAN SCORE: {gender_stats_total["TOTAL"]}')
+            table.add_row([number, grouping_value, year, gender_stats_total[sortby], gender_stats_total["TOTAL"]])
+            
+    # if not verbose:
+    print(table)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Schools')
@@ -106,17 +232,45 @@ if __name__ == "__main__":
     subparsers = parser.add_subparsers(help='sub-command help')
 
     parser_schools = subparsers.add_parser('schools', help='schools')
-    parser_schools.add_argument('--year', type=int, help='Year')
+    parser_schools.add_argument('--year', type=int, help='Year', default=2020)
     parser_schools.add_argument('--areaname', type=str, help='AREANAME')
     parser_schools.set_defaults(func=schools)
 
     parser_top = subparsers.add_parser('top', help='top')
-    parser_top.add_argument('--year', type=int, help='Year')
+    parser_top.add_argument('--year', type=int, help='Year', default=2020)
     parser_top.add_argument('--areaname', type=str, help='AREANAME')
     parser_top.add_argument('--sortby', type=str, help='Field to sort by', default='TOTAL')
+    parser_top.add_argument('--sortorder', type=str, help='Sorting order', default='DESC')
     parser_top.add_argument('-N', type=int, help='Top N schools')
     parser_top.add_argument('--verbose', help='Verbose output', const=True, nargs='?', default=False)
     parser_top.set_defaults(func=top)
+
+    parser_gender = subparsers.add_parser('gender', help='gender')
+    parser_gender.add_argument('--year', type=int, help='Year', default=2020)
+    parser_gender.add_argument('--sortby', type=str, help='Field to sort by', default='TOTAL')
+    parser_gender.add_argument('--sortorder', type=str, help='Sorting order', default='DESC')
+    parser_gender.add_argument('--areaname', type=str, help='AREANAME')
+    parser_gender.add_argument('-N', type=int, help='Top N schools')
+    parser_gender.add_argument('--verbose', help='Verbose output', const=True, nargs='?', default=False)
+    parser_gender.set_defaults(func=gender)
+
+    parser_region = subparsers.add_parser('region', help='region')
+    parser_region.add_argument('--year', type=int, help='Year', default=2020)
+    parser_region.add_argument('--sortby', type=str, help='Field to sort by', default='TOTAL')
+    parser_region.add_argument('--sortorder', type=str, help='Sorting order', default='DESC')
+    parser_region.add_argument('--areaname', type=str, help='AREANAME')
+    parser_region.add_argument('-N', type=int, help='Top N schools')
+    parser_region.add_argument('--verbose', help='Verbose output', const=True, nargs='?', default=False)
+    parser_region.set_defaults(func=region)
+
+    parser_language = subparsers.add_parser('language', help='language')
+    parser_language.add_argument('--year', type=int, help='Year', default=2020)
+    parser_language.add_argument('--sortby', type=str, help='Field to sort by', default='TOTAL')
+    parser_language.add_argument('--sortorder', type=str, help='Sorting order', default='DESC')
+    parser_language.add_argument('--areaname', type=str, help='AREANAME')
+    parser_language.add_argument('-N', type=int, help='Top N schools')
+    parser_language.add_argument('--verbose', help='Verbose output', const=True, nargs='?', default=False)
+    parser_language.set_defaults(func=language)
 
     args = parser.parse_args()
     args.func(args)
