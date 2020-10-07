@@ -207,22 +207,10 @@ def print_stats_by(year, grouping='SEXTYPENAME', grouping_title='SEX', sortby='T
 
     for number, (grouping_value, gender_stats_total) in enumerate(stats_totals[:N], start=1):
         if verbose:
-            # print('----->', [number, grouping_value, year] + [gender_stats_total.get(x, 0.0) for x in _columns] + [gender_stats_total["TOTAL"]])
             table.add_row([number, grouping_value, year] + [gender_stats_total.get(x, 0.0) for x in _columns] + [gender_stats_total["TOTAL"]])
-
-            # print(f'{number}. {grouping_title}: {grouping_value}. Year:{year}')
-            
-            # table = PrettyTable()
-            # table.field_names = _columns
-            # table.add_row([gender_stats_total.get(x, 0.0) for x in _columns])
-            
-            # print(table)
-            # print()
         else:
-            # print(f'{number}. {grouping_title}: {grouping_value} IN {year} TOTAL MEAN SCORE: {gender_stats_total["TOTAL"]}')
             table.add_row([number, grouping_value, year, gender_stats_total[sortby], gender_stats_total["TOTAL"]])
-            
-    # if not verbose:
+
     print(table)
 
 
