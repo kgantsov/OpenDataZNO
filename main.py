@@ -34,6 +34,13 @@ def top(args):
     )
 
 
+def to_upper_first_letter(s):
+    if not s:
+        return s
+
+    return s[0].upper() + s[1:]
+
+
 def print_top(year, sortby='TOTAL', sortorder='DESC', areaname=None, N=10, verbose=False):
     file_name = f'data/Odata{year}.csv'
 
@@ -68,6 +75,8 @@ def print_top(year, sortby='TOTAL', sortorder='DESC', areaname=None, N=10, verbo
                 continue
 
             for column in columns:
+                column = to_upper_first_letter(column) if to_upper_first_letter(column) in row else column
+
                 if row[column] != 'null':
                     school_results[school_name][column].append(float(row[column].replace(',','.')))
 
